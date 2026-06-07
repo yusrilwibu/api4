@@ -1,9 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
 from ytmusicapi import YTMusic
 import yt_dlp
-import re
 
 app = FastAPI(title="SANN404 FORUM Music API")
 
@@ -42,6 +40,7 @@ async def get_stream_url(video_id: str):
             'quiet': True,
             'no_warnings': True,
             'extract_flat': False,
+            'extractor_args': {'youtube': {'player_client': ['ios']}}
         }
         url = f"https://music.youtube.com/watch?v={video_id}"
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -50,10 +49,10 @@ async def get_stream_url(video_id: str):
             duration = info.get('duration', 0)
             title = info.get('title', '')
             thumbnail = info.get('thumbnail', '')
-            
+
             if not stream_url:
                 raise HTTPException(status_code=404, detail="Stream URL not found")
-            
+
             return {
                 "status": "success",
                 "data": {
@@ -63,8 +62,6 @@ async def get_stream_url(video_id: str):
                     "thumbnail": thumbnail,
                 }
             }
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -75,7 +72,7 @@ async def get_lyrics(video_id: str):
         lyrics_id = watch_playlist.get("lyrics")
         if not lyrics_id:
             return {"status": "error", "message": "Lirik tidak ditemukan"}
-        
+
         lyrics = yt.get_lyrics(lyrics_id)
         return {"status": "success", "data": lyrics}
     except Exception as e:
