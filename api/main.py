@@ -1,6 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from ytmusicapi import YTMusic
+import yt_dlp
+import re
 
 app = FastAPI(title="SANN404 FORUM Music API")
 
@@ -27,6 +30,41 @@ async def get_charts():
     try:
         results = yt.get_charts()
         return {"status": "success", "data": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/stream")
+async def get_stream_url(video_id: str):
+    """Get direct audio stream URL for a YouTube video ID"""
+    try:
+        ydl_opts = {
+            'format': 'bestaudio[ext=m4a]/bestaudio/best',
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': False,
+        }
+        url = f"https://music.youtube.com/watch?v={video_id}"
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            stream_url = info.get('url', '')
+            duration = info.get('duration', 0)
+            title = info.get('title', '')
+            thumbnail = info.get('thumbnail', '')
+            
+            if not stream_url:
+                raise HTTPException(status_code=404, detail="Stream URL not found")
+            
+            return {
+                "status": "success",
+                "data": {
+                    "url": stream_url,
+                    "duration": duration,
+                    "title": title,
+                    "thumbnail": thumbnail,
+                }
+            }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
