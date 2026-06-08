@@ -35,44 +35,51 @@ async def get_charts():
 
 @app.get("/api/stream")
 async def get_stream_url(video_id: str):
-    """Get direct audio stream URL for a YouTube video ID"""
-    try:
-        ydl_opts = {
-            'format': 'bestaudio[ext=m4a]/bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': False,
-            # android_vr TERBUKTI bypass blokir YouTube bot detection
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android_vr', 'android', 'web']
+    """Get direct audio stream URL — mencoba 6 client YouTube berurutan untuk bypass bot detection"""
+    url = f"https://music.youtube.com/watch?v={video_id}"
+    
+    # Urutan client yang dicoba: mediaconnect → ios → tv_html5 → web_safari → mweb → ios+mediaconnect
+    clients_to_try = [
+        ["mediaconnect"],
+        ["ios"],
+        ["tv_html5"],
+        ["web_safari"],
+        ["mweb"],
+        ["ios", "mediaconnect"],
+    ]
+    
+    last_error = ""
+    for clients in clients_to_try:
+        try:
+            ydl_opts = {
+                'format': 'bestaudio[ext=m4a]/bestaudio/best',
+                'quiet': True,
+                'no_warnings': True,
+                'extract_flat': False,
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': clients
+                    }
                 }
             }
-        }
-        url = f"https://music.youtube.com/watch?v={video_id}"
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            stream_url = info.get('url', '')
-            duration = info.get('duration', 0)
-            title = info.get('title', '')
-            thumbnail = info.get('thumbnail', '')
-            
-            if not stream_url:
-                raise HTTPException(status_code=404, detail="Stream URL not found")
-            
-            return {
-                "status": "success",
-                "data": {
-                    "url": stream_url,
-                    "duration": duration,
-                    "title": title,
-                    "thumbnail": thumbnail,
-                }
-            }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                stream_url = info.get('url', '')
+                if stream_url:
+                    return {
+                        "status": "success",
+                        "data": {
+                            "url": stream_url,
+                            "duration": info.get('duration', 0),
+                            "title": info.get('title', ''),
+                            "thumbnail": info.get('thumbnail', ''),
+                        }
+                    }
+        except Exception as e:
+            last_error = str(e)
+            continue  # coba client berikutnya
+    
+    raise HTTPException(status_code=500, detail=f"All YouTube clients failed: {last_error}")
 
 @app.get("/api/lyrics")
 async def get_lyrics(video_id: str):
