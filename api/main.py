@@ -42,10 +42,10 @@ async def get_stream_url(video_id: str):
             'quiet': True,
             'no_warnings': True,
             'extract_flat': False,
-            # BYPASS YOUTUBE BOT DETECTION
+            # android_vr TERBUKTI bypass blokir YouTube bot detection
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web']
+                    'player_client': ['android_vr', 'android', 'web']
                 }
             }
         }
